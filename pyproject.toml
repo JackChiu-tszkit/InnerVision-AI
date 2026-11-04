@@ -1,0 +1,11 @@
+[project]
+name = "innervision-ai"
+version = "0.2.0"
+description = "Windows 本地的感恩、愿景、释放练习与行动教练"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    html, body { margin: 0; padding: 0; background: transparent; color: #2c3330; font-family: "Segoe UI", sans-serif; }
+    .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; padding: 4px; }
+    .card { border: 1px solid #ddd4c6; border-radius: 14px; background: #fbf8f3; overflow: hidden; cursor: grab; }
+    .card.over { outline: 2px solid #7d9a86; }
+    .photo { height: 112px; background: #e7efe8 center/cover no-repeat; }
+    .meta { padding: 10px 12px 12px; }
+    .title { font-size: 15px; font-weight: 650; line-height: 1.35; }
+    .category { margin-top: 4px; font-size: 12px; color: #66706a; }
+    .empty { padding: 12px; color: #66706a; }
+  </style>
+</head>
+<body>
+  <div id="board" class="board"></div>
+  <script src="./streamlit-component-lib.js"></script>
+  <script>
+    const board = document.getElementById("board");
+    let cards = [];
+
+    function sendHeight() {
+      Streamlit.setFrameHeight(Math.max(board.scrollHeight + 8, 48));
+    }
+
+    function draw() {
+      board.replaceChildren();
+      if (!cards.length) {
+        const note = document.createElement("div");
+        note.className = "empty";
+        note.textContent = "放上两张卡片后就可以拖动。";
+        board.appendChild(note);
+        sendHeight();
+        return;
+      }
+      cards.forEach((card) => {
+        const item = document.createElement("article");
+        item.className = "card";
+        item.draggable = true;
+        const photo = document.createElement("div");
+        photo.className = "photo";
+        if (card.image) {
+          photo.style.backgroundImage = 'url("' + card.image + '")';
+        }
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = card.title;
+        const category = document.createElement("div");
+        category.className = "category";
+        category.textContent = card.category;
+        meta.append(title, category);
+        item.append(photo, meta);
+        item.addEventListener("dragstart", (event) => {
+          event.dataTransfer.setData("text/plain", String(card.id));
+          event.dataTransfer.effectAllowed = "move";
+        });
+        item.addEventListener("dragover", (event) => {
+          event.preventDefault();
+          item.classList.add("over");
+        });
+        item.addEventListener("dragleave", () => item.classList.remove("over"));
+        item.addEventListener("drop", (event) => {
+          event.preventDefault();
+          item.classList.remove("over");
+          moveCard(Number(event.dataTransfer.getData("text/plain")), Number(card.id));
+        });
+        board.appendChild(item);
+      });
+      sendHeight();
+    }
+
+    function moveCard(from, to) {
+      if (!from || !to || from === to) return;
+      const next = cards.slice();
+      const fromIndex = next.findIndex((card) => card.id === from);
+      const toIndex = next.findIndex((card) => card.id === to);
+      if (fromIndex < 0 || toIndex < 0) return;
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      cards = next;
+      draw();
+      Streamlit.setComponentValue({ ids: cards.map((card) => card.id) });
+    }
+
+    function render(event) {
+      const incoming = Array.isArray(event.data.args && event.data.args.cards)
+        ? event.data.args.cards
+        : [];
+      cards = incoming.map((card) => ({
+        id: Number(card.id),
+        title: String(card.title || ""),
+        category: String(card.category || ""),
+        image: typeof card.image === "string" && card.image.indexOf("data:image/") === 0 && card.image.indexOf(")") === -1
+          ? card.image
+          : ""
+      }));
+      draw();
+    }
+
+    Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, render);
+    Streamlit.setComponentReady();
+    Streamlit.setFrameHeight(160);
+  </script>
+</body>
+</html>
